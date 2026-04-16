@@ -4,9 +4,9 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { NButton, NCard, NDivider, NFlex } from 'naive-ui'
 import { ProDigit, ProForm, ProSelect, ProSwitch } from 'pro-naive-ui'
 import { onMounted, ref } from 'vue'
-import { BinanceProvider } from '@/providers/Binance.ts'
-import { GateProvider } from '@/providers/Gate.ts'
-import { OKXProvider } from '@/providers/OKX.ts'
+import { binanceProvider } from '@/providers/Binance.ts'
+import { gateProvider } from '@/providers/Gate.ts'
+import { okxProvider } from '@/providers/OKX.ts'
 import { saveConfig as _saveConfig, config, defaultConfig } from '@/stores/ConfigStore.ts'
 import { notification } from '@/utils/discreteApi.ts'
 import { useProForm } from '@/utils/useProForm.ts'
@@ -23,13 +23,13 @@ async function getPairs(clean = false) {
   getParidsLoading.value = true
   try {
     if (config.value.trade.provider === 'Gate') {
-      pairOptions.value = await GateProvider.getPairs(config.value.trade.mark)
+      pairOptions.value = await gateProvider.getPairs(config.value.trade.mark)
     }
     else if (config.value.trade.provider === 'Binance') {
-      pairOptions.value = await BinanceProvider.getPairs(config.value.trade.mark)
+      pairOptions.value = await binanceProvider.getPairs(config.value.trade.mark)
     }
     else if (config.value.trade.provider === 'OKX') {
-      pairOptions.value = await OKXProvider.getPairs(config.value.trade.mark)
+      pairOptions.value = await okxProvider.getPairs(config.value.trade.mark)
     }
 
     notification.success({
@@ -76,7 +76,7 @@ const form = useProForm({
   rules: () => ({
     'preferences.theme': { required: true, message: '请选择主题' },
     'preferences.colorMode': { required: true, message: '请选择涨跌颜色模式' },
-    'preferences.price_basis': { required: true, message: '请选择涨跌幅基准' },
+    'preferences.priceBasis': { required: true, message: '请选择涨跌幅基准' },
     'preferences.size': { required: true, type: 'number', min: 1, max: 5, message: '每页展示数量必须在 1 到 50 之间' },
     'trade.provider': { required: true, message: '请选择交易所' },
     'trade.mark': { required: true, type: 'boolean', message: '请选择交易类型' },
@@ -127,7 +127,7 @@ const form = useProForm({
         />
 
         <ProSelect
-          title="涨跌幅基准" path="preferences.price_basis" :field-props="{
+          title="涨跌幅基准" path="preferences.priceBasis" :field-props="{
             options: [
               { label: '24小时', value: '24h' },
               ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12]
@@ -158,11 +158,16 @@ const form = useProForm({
               { label: 'Binance', value: 'Binance' },
               { label: 'Gate', value: 'Gate' },
             ],
+            disabled: getParidsLoading,
           }"
           @change="getPairs(true)"
         />
 
-        <ProSwitch title="是否为合约" path="trade.mark" @change="getPairs(true)" />
+        <ProSwitch
+          title="是否为合约" path="trade.mark" :field-props="{
+            disabled: getParidsLoading,
+          }" @change="getPairs(true)"
+        />
 
         <ProSelect
           title="交易对"

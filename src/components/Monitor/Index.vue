@@ -7,7 +7,9 @@ import { exit } from '@tauri-apps/plugin-process'
 import { Add16Filled, ContractDownLeft16Filled, Dismiss16Filled, Pin16Filled, PinOff16Filled, Settings16Filled } from '@vicons/fluent'
 import { NButton, NFlex, NPagination } from 'naive-ui'
 import { computed, onMounted, ref } from 'vue'
-import { GateProvider } from '@/providers/Gate.ts'
+import { binanceProvider } from '@/providers/Binance.ts'
+import { gateProvider } from '@/providers/Gate.ts'
+import { okxProvider } from '@/providers/OKX.ts'
 import { config, initConfig, saveConfig } from '@/stores/ConfigStore'
 import { renderIcon } from '@/utils/renderIcon.ts'
 
@@ -28,7 +30,23 @@ async function loadCharts() {
   }
 
   if (config.value.trade.provider === 'Gate') {
-    closeListener = await GateProvider.useCharts({
+    closeListener = await gateProvider.useCharts({
+      charts,
+      mark: config.value.trade.mark,
+      pairs: config.value.trade.pairs,
+      priceBasis: config.value.preferences.priceBasis,
+    })
+  }
+  else if (config.value.trade.provider === 'Binance') {
+    closeListener = await binanceProvider.useCharts({
+      charts,
+      mark: config.value.trade.mark,
+      pairs: config.value.trade.pairs,
+      priceBasis: config.value.preferences.priceBasis,
+    })
+  }
+  else if (config.value.trade.provider === 'OKX') {
+    closeListener = await okxProvider.useCharts({
       charts,
       mark: config.value.trade.mark,
       pairs: config.value.trade.pairs,

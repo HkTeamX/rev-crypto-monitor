@@ -4,6 +4,7 @@ import { fetch } from '@tauri-apps/plugin-http'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import ReconnectingWebSocket from 'reconnecting-websocket'
+import { BaseProvider } from '@/providers/Base.ts'
 import { setupHourlyRefresher } from '@/utils/setupHourlyRefresher.ts'
 
 dayjs.extend(utc)
@@ -18,82 +19,85 @@ export interface GateMarkPair {
 
 export interface GateTicker {
   contract: string
-  last: string
-  change_percentage: string
-  total_size: string
-  volume_24h: string
-  volume_24h_base: string
-  volume_24h_quote: string
-  volume_24h_settle: string
-  mark_price: string
-  funding_rate: string
-  funding_rate_indicative: string
-  index_price: string
-  quanto_base_rate: string
-  low_24h: string
-  high_24h: string
-  price_type: string
-  change_from: string
-  change_price: string
-  t: number
+  price: string
 }
 
 export interface GateSpotTicker {
   currency_pair: string
-  last: string
-  lowest_ask: string
-  highest_bid: string
-  change_percentage: string
-  base_volume: string
-  quote_volume: string
-  high_24h: string
-  low_24h: string
+  price: string
 }
 
-let ws: ReconnectingWebSocket | null = null
+export type GateWebSocketResponse = {
+  time: number
+  event: string
+}&({
+  channel: 'futures.trades'
+  result: [GateTicker]
+} | {
+  channel: 'spot.trades'
+  result: GateSpotTicker
+})
 
-export class GateProvider {
-  static async getPairs(isMark: boolean): Promise<SelectOption[]> {
+export interface GateCandle {
+  o: string
+  c: string
+}
+
+export class GateProvider extends BaseProvider {
+  ws: ReconnectingWebSocket | null = null
+
+  getIconUrl(pair: string) {
+    return `https://icon.staticimgs.com/images/coin_icon/64/${pair.toLowerCase()}.png`
+  }
+
+  parsePair(pair: string) {
+    return pair.split('_')[0] ?? 'UNKNOWN'
+  }
+
+  async getPairs(isMark: boolean): Promise<SelectOption[]> {
     if (isMark) {
       return await fetch(`https://api.gateio.ws/api/v4/futures/usdt/contracts`)
         .then(res => res.json())
-        .then((data: GateMarkPair[]) => data.map((pair: GateMarkPair) => ({
-          label: pair.name,
-          value: pair.name,
-        })))
+        .then((data: GateMarkPair[]) => data
+          .filter(pair => Boolean(pair.name))
+          .map((pair: GateMarkPair) => ({
+            label: pair.name,
+            value: pair.name,
+          })))
     }
 
     return await fetch(`https://api.gateio.ws/api/v4/spot/currency_pairs`)
       .then(res => res.json())
-      .then((data: GatePair[]) => data.map((pair: GatePair) => ({
-        label: pair.id,
-        value: pair.id,
-      })))
+      .then((data: GatePair[]) => data
+        .filter(pair => Boolean(pair.id))
+        .map((pair: GatePair) => ({
+          label: pair.id,
+          value: pair.id,
+        })))
   }
 
-  // 缓存的是每小时的开盘价
-  static cachedPrice = new Map<string, number>()
-
-  static async refreshCharts(options: UseChartOptions, init: boolean) {
+  async refreshCharts(options: UseChartOptions, init: boolean) {
     if (init) {
       options.pairs.forEach((ticker) => {
-        const pair = ticker.split('_')[0] ?? 'UNKNOWN'
+        const pair = this.getDisplayPair(ticker)
 
         options.charts.value.set(pair, {
           pair,
-          icon: `https://icon.staticimgs.com/images/coin_icon/64/${pair.toLowerCase()}.png`,
+          icon: this.getIconUrl(pair),
           price: 0,
           precent: 0,
         })
       })
     }
 
-    await Promise.all(
-      options.pairs.map((ticker) => {
-        const pair = ticker.split('_')[0] ?? 'UNKNOWN'
+    const from = options.priceBasis === '24h'
+      ? dayjs().subtract(24, 'hour').unix()
+      : dayjs().utcOffset(options.priceBasis).startOf('day').unix()
+    const to = dayjs().unix()
 
-        const from = options.priceBasis === '24h' ? dayjs().subtract(24, 'hour').unix() : dayjs().utcOffset(options.priceBasis).startOf('day').unix()
-        const to = dayjs().unix()
+    await Promise.all(
+      options.pairs.map(async (ticker) => {
+        const pair = this.getDisplayPair(ticker)
 
         const query = new URLSearchParams({
           contract: `mark_${ticker}`,
@@ -103,82 +107,83 @@ export class GateProvider {
           to: to.toString(),
         })
 
-        return fetch(
+        const data = await fetch(
           options.mark
             ? `https://api.gateio.ws/api/v4/futures/usdt/candlesticks?${query}`
             : `https://api.gateio.ws/api/v4/spot/candlesticks?${query}`,
-        )
-          .then(res => res.json())
-          .then((res: { o: string, c: string }[]) => {
-            const first = res[0]
-            const last = res[res.length - 1]
-            const startMarketPrice = Number.parseFloat(first.o)
-            const endMarketPrice = Number.parseFloat(last.c)
-            this.cachedPrice.set(ticker, startMarketPrice)
-            options.charts.value.set(pair, {
-              pair,
-              icon: `https://icon.staticimgs.com/images/coin_icon/64/${pair.toLowerCase()}.png`,
-              price: endMarketPrice,
-              precent: ((endMarketPrice - startMarketPrice) / startMarketPrice) * 100,
-            })
-          })
+        ).then(res => res.json())
+
+        if (!Array.isArray(data) || data.length === 0) {
+          return
+        }
+
+        const first = data[0]
+        const last = data[data.length - 1]
+        const startMarketPrice = Number.parseFloat(options.mark ? first.o : first[5])
+        const endMarketPrice = Number.parseFloat(options.mark ? last.c : last[2])
+        if (Number.isNaN(startMarketPrice) || Number.isNaN(endMarketPrice)) {
+          return
+        }
+
+        this.cachedPrice.set(ticker, startMarketPrice)
+        this.updateChart(options, pair, endMarketPrice, startMarketPrice)
       }),
     )
   }
 
-  static async useCharts(options: UseChartOptions) {
+  async useCharts(options: UseChartOptions) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.close()
+      this.ws = null
+    }
+
     // 初始化图表
     await this.refreshCharts(options, true)
     const closeRefresher = setupHourlyRefresher(() => this.refreshCharts(options, false))
 
-    ws = new ReconnectingWebSocket(options.mark ? 'wss://fx-ws.gateio.ws/v4/ws/usdt' : 'wss://api.gateio.ws/ws/v4/')
+    this.ws = new ReconnectingWebSocket(options.mark ? 'wss://fx-ws.gateio.ws/v4/ws/usdt' : 'wss://api.gateio.ws/ws/v4/')
 
-    ws.addEventListener('message', (event) => {
-      const data = JSON.parse(event.data)
+    this.ws.addEventListener('message', (event) => {
+      let data: GateWebSocketResponse
+      try {
+        data = JSON.parse(event.data)
+      }
+      catch {
+        return
+      }
+
       if (data.event !== 'update') {
         return
       }
 
-      if (options.mark) {
-        const result = data.result as GateTicker[]
-
-        result.forEach((ticker) => {
-          const pair = ticker.contract.split('_')[0] ?? 'UNKNOWN'
-          const price = Number.parseFloat(ticker.mark_price)
+      if (options.mark && data.channel === 'futures.trades') {
+        data.result.forEach((ticker) => {
+          const pair = this.getDisplayPair(ticker.contract)
+          const price = Number.parseFloat(ticker.price)
           const startMarketPrice = this.cachedPrice.get(ticker.contract) ?? price
-
-          options.charts.value.set(pair, {
-            pair,
-            icon: `https://icon.staticimgs.com/images/coin_icon/64/${pair.toLowerCase()}.png`,
-            price: Number.parseFloat(ticker.mark_price),
-            precent: ((price - startMarketPrice) / startMarketPrice) * 100,
-          })
+          this.updateChart(options, pair, price, startMarketPrice)
         })
       }
-      else {
-        const result = data.result as GateSpotTicker
-        const price = Number.parseFloat(result.last)
-        const startMarketPrice = this.cachedPrice.get(result.currency_pair) ?? price
+      else if (data.channel === 'spot.trades') {
+        const result = data.result
 
-        const pair = result.currency_pair.split('_')[0] ?? 'UNKNOWN'
-        options.charts.value.set(pair, {
-          pair,
-          icon: `https://icon.staticimgs.com/images/coin_icon/64/${pair.toLowerCase()}.png`,
-          price: Number.parseFloat(result.last),
-          precent: ((price - startMarketPrice) / startMarketPrice) * 100,
-        })
+        const pair = this.getDisplayPair(result.currency_pair)
+        const price = Number.parseFloat(result.price)
+
+        const startMarketPrice = this.cachedPrice.get(result.currency_pair) ?? price
+        this.updateChart(options, pair, price, startMarketPrice)
       }
     })
 
-    ws.addEventListener('open', () => {
-      if (!ws) {
+    this.ws.addEventListener('open', () => {
+      if (!this.ws) {
         return
       }
 
       // 订阅所选交易对的价格更新
-      ws.send(JSON.stringify({
+      this.ws.send(JSON.stringify({
         time: Date.now(),
-        channel: options.mark ? 'futures.tickers' : 'spot.tickers',
+        channel: options.mark ? 'futures.trades' : 'spot.trades',
         event: 'subscribe',
         payload: options.pairs,
       }))
@@ -186,13 +191,17 @@ export class GateProvider {
 
     return () => {
       closeRefresher()
+
       // 清空缓存的数据
       this.cachedPrice.clear()
+      this.displayPairCache.clear()
 
-      if (ws) {
-        ws.close()
-        ws = null
+      if (this.ws) {
+        this.ws.close()
+        this.ws = null
       }
     }
   }
 }
+
+export const gateProvider = new GateProvider()

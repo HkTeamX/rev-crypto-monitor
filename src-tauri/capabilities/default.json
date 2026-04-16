@@ -30,6 +30,9 @@
           "url": "https://*.binance.com"
         },
         {
+          "url": "https://bin.bnbstatic.com"
+        },
+        {
           "url": "https://*.okx.com"
         }
       ]
