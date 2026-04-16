@@ -1,0 +1,38 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": [
+    "main",
+    "settings"
+  ],
+  "permissions": [
+    "core:default",
+    "fs:default",
+    "fs:allow-appconfig-write-recursive",
+    "fs:allow-appconfig-read-recursive",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-close",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-size",
+    "dialog:default",
+    "process:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://*.gateio.ws"
+        },
+        {
+          "url": "https://*.binance.com"
+        },
+        {
+          "url": "https://*.okx.com"
+        }
+      ]
+    }
+  ]
+}
