@@ -1,7 +1,7 @@
 import type { BasicColorSchema } from '@vueuse/core'
 import { emit } from '@tauri-apps/api/event'
 import { message } from '@tauri-apps/plugin-dialog'
-import { BaseDirectory, exists, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
+import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 import { exit } from '@tauri-apps/plugin-process'
 import { ref } from 'vue'
 import { setMode } from '@/utils/useTheme.ts'
@@ -63,6 +63,10 @@ export async function initConfig(force = false) {
     }
   }
   catch (error) {
+    if (!await exists('', { baseDir: BaseDirectory.AppData })) {
+      await mkdir('', { baseDir: BaseDirectory.AppData, recursive: true })
+    }
+
     if (!await exists('config.json', { baseDir: BaseDirectory.AppData })) {
       await writeTextFile('config.json', JSON.stringify(config.value, null, 2), { baseDir: BaseDirectory.AppData })
     }
