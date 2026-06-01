@@ -56,7 +56,7 @@ async function loadCharts() {
 }
 
 const window = getCurrentWindow()
-const height = computed(() => config.value.preferences.size * 80 + 79)
+const height = computed(() => config.value.preferences.size * 80 + 85)
 
 function setWindowSize() {
   window.setSize(new LogicalSize(170, height.value))

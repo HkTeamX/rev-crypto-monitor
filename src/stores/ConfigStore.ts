@@ -37,7 +37,7 @@ export const defaultConfig: Config = {
   trade: {
     provider: 'Gate',
     mark: false,
-    pairs: ['BTC_USDT', 'ETH_USDT', 'BNB_USDT'],
+    pairs: ['BTC_USDT', 'ETH_USDT', 'SOL_USDT'],
   },
 }
 
