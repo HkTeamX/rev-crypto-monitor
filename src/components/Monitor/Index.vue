@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import { exit } from '@tauri-apps/plugin-process'
-import { Add16Filled, ContractDownLeft16Filled, Dismiss16Filled, Pin16Filled, PinOff16Filled, Settings16Filled } from '@vicons/fluent'
+import { ArrowClockwise16Filled, ContractDownLeft16Filled, Dismiss16Filled, Pin16Filled, PinOff16Filled, Settings16Filled } from '@vicons/fluent'
 import { NButton, NFlex, NPagination } from 'naive-ui'
 import { computed, onMounted, ref } from 'vue'
 import { binanceProvider } from '@/providers/Binance.ts'
@@ -56,7 +56,8 @@ async function loadCharts() {
 }
 
 const window = getCurrentWindow()
-const height = computed(() => config.value.preferences.size * 80 + 85)
+const containerHeight = computed(() => (config.value.preferences.size - 1) * 80 + 70)
+const height = computed(() => containerHeight.value + 28 * 2 + 10 * 4)
 
 function setWindowSize() {
   window.setSize(new LogicalSize(170, height.value))
@@ -123,14 +124,14 @@ function computeClass(precent: number) {
 </script>
 
 <template>
-  <div data-tauri-drag-region class="monitor" :style="`height: ${height}px`">
+  <div data-tauri-drag-region class="monitor">
     <NFlex justify="center" :size="1">
       <NButton
         quaternary
         circle
-        :render-icon="renderIcon(Add16Filled)"
+        :render-icon="renderIcon(ArrowClockwise16Filled)"
         size="small"
-        @click="openSettings"
+        @click="setWindowSize(); loadCharts();"
       />
 
       <NButton
@@ -166,7 +167,7 @@ function computeClass(precent: number) {
       />
     </NFlex>
 
-    <NFlex direction="column" align="center" justify="center" style="margin: 10px 0;">
+    <div data-tauri-drag-region class="charts-container" :style="{ height: `${containerHeight}px` }">
       <div
         v-for="chart in pagnitedPairs"
         :key="chart.pair"
@@ -181,7 +182,7 @@ function computeClass(precent: number) {
           <span>{{ chart.price }} {{ chart.precent === 0 ? '' : chart.precent > 0 ? "↑" : "↓" }}</span>
         </p>
       </div>
-    </NFlex>
+    </div>
 
     <NPagination v-model:page="page" simple :page-count="total" class="pagination" />
   </div>
@@ -193,8 +194,12 @@ function computeClass(precent: number) {
   border-radius: 5px;
   background: rgb(27, 38, 54);
   width: 170px;
+  height: 100%;
   box-sizing: border-box;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 
   :deep(.n-pagination--simple) {
     justify-content: center;
@@ -203,79 +208,80 @@ function computeClass(precent: number) {
       width: 55px;
     }
   }
-
-  .pagination{
-    position: absolute;
-    bottom: 10px;
-  }
 }
 
-.panel {
-  background: rgb(39, 49, 64);
-  border-radius: 10px;
-  padding: 5px;
-  width: 100%;
-  height: 70px;
-  box-sizing: border-box;
+.charts-container {
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
+  gap: 10px;
 
-  p {
-    margin: 0;
-  }
-
-  img {
-    width: 22px;
-    height: 22px;
-  }
-
-  span{
-    background: rgb(26, 37, 53);
-    border-radius: 15px;
-    padding: 0 8px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .red {
-    color: #f44336;
-  }
-
-  .green {
-    color: #4caf50;
-  }
-
-  .large {
-    font-size: 12px;
-    line-height: 22px;
-  }
-
-  .l1 {
+  .panel {
+    background: rgb(39, 49, 64);
+    border-radius: 10px;
+    padding: 5px;
+    width: 100%;
+    height: 70px;
+    box-sizing: border-box;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    justify-content: space-around;
 
-    .pair {
-      font-weight: bold;
-      line-height: 22px;
-      max-width: 35px;
-      font-size: 10px;
+    p {
+      margin: 0;
     }
-  }
 
-  .l2 {
-    height: 25px;
+    img {
+      width: 22px;
+      height: 22px;
+    }
 
-    > span {
-      display: block;
-      width: 100%;
-      height: 100%;
-      line-height: 25px;
-      font-size: 16px;
-      padding: 0;
-      text-align: center;
-      font-weight: bold;
+    span {
+      background: rgb(26, 37, 53);
+      border-radius: 15px;
+      padding: 0 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .red {
+      color: #f44336;
+    }
+
+    .green {
+      color: #4caf50;
+    }
+
+    .large {
+      font-size: 12px;
+      line-height: 22px;
+    }
+
+    .l1 {
+      display: flex;
+      justify-content: space-between;
+
+      .pair {
+        font-weight: bold;
+        line-height: 22px;
+        max-width: 35px;
+        font-size: 10px;
+      }
+    }
+
+    .l2 {
+      height: 25px;
+
+      >span {
+        display: block;
+        width: 100%;
+        height: 100%;
+        line-height: 25px;
+        font-size: 16px;
+        padding: 0;
+        text-align: center;
+        font-weight: bold;
+      }
     }
   }
 }

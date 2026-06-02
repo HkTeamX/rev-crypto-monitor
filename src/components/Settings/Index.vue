@@ -77,7 +77,7 @@ const form = useProForm({
     'preferences.theme': { required: true, message: '请选择主题' },
     'preferences.colorMode': { required: true, message: '请选择涨跌颜色模式' },
     'preferences.priceBasis': { required: true, message: '请选择涨跌幅基准' },
-    'preferences.size': { required: true, type: 'number', min: 1, max: 5, message: '每页展示数量必须在 1 到 50 之间' },
+    'preferences.size': { required: true, type: 'number', min: 1, max: 10, message: '每页展示数量必须在 1 到 10 之间' },
     'trade.provider': { required: true, message: '请选择交易所' },
     'trade.mark': { required: true, type: 'boolean', message: '请选择交易类型' },
     'trade.pairs': { required: true, type: 'array', min: 1, message: '请至少选择一个交易对' },
@@ -142,7 +142,7 @@ const form = useProForm({
         <ProDigit
           title="每页展示数量" path="preferences.size" :field-props="{
             min: 1,
-            max: 5,
+            max: 10,
           }"
         />
 
