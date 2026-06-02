@@ -24,6 +24,8 @@ export interface Config {
     clickThrough: boolean
     // 是否首次点击切换穿透
     isFirstSwitchClickThrough?: boolean
+    // 简洁模式（鼠标离开后自动隐藏工具栏和翻页）
+    compactMode: boolean
   }
   trade: {
     provider: 'OKX' | 'Binance' | 'Gate'
@@ -42,6 +44,7 @@ export const defaultConfig: Config = {
     opacity: 100,
     clickThrough: false,
     isFirstSwitchClickThrough: true,
+    compactMode: false,
   },
   trade: {
     provider: 'Gate',
@@ -73,6 +76,14 @@ export async function initConfig(force = false) {
 
     if (config.value.preferences.opacity === undefined) {
       config.value.preferences.opacity = defaultConfig.preferences.opacity
+    }
+
+    if (config.value.preferences.compactMode === undefined) {
+      config.value.preferences.compactMode = defaultConfig.preferences.compactMode
+    }
+
+    if (config.value.preferences.clickThrough === undefined) {
+      config.value.preferences.clickThrough = defaultConfig.preferences.clickThrough
     }
   }
   catch (error) {
