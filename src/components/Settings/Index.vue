@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import type { SelectOption } from 'naive-ui'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { NButton, NCard, NDivider, NFlex, NSlider, NTag } from 'naive-ui'
-import { ProDigit, ProForm, ProSelect, ProSwitch } from 'pro-naive-ui'
+import { NButton, NCard, NDivider, NFlex, NTag } from 'naive-ui'
+import { ProDigit, ProForm, ProSelect, ProSlider, ProSwitch } from 'pro-naive-ui'
 import { onMounted, ref, watch } from 'vue'
 import { useDraggable } from 'vue-draggable-plus'
 import { binanceProvider } from '@/providers/Binance.ts'
@@ -166,19 +166,27 @@ const form = useProForm({
           }"
         />
 
-        <NFlex align="center" :style="{ padding: '0 11px' }">
-          <span :style="{ width: '110px', flexShrink: 0, textAlign: 'start' }">背景透明度</span>
-          <NSlider
-            v-model:value="config.preferences.opacity"
-            :min="10"
-            :max="100"
-            :step="1"
-            :style="{ flex: 1 }"
-          />
-          <span :style="{ width: '40px', textAlign: 'right' }">{{ config.preferences.opacity }}%</span>
-        </NFlex>
+        <ProSlider
+          title="透明度"
+          path="preferences.opacity"
+          :field-props="{
+            min: 10,
+            max: 100,
+            step: 1,
+          }"
+        >
+          <template #feedback>
+            {{ config.preferences.opacity }}%
+          </template>
+        </ProSlider>
 
-        <NDivider title-placement="left">
+        <ProSwitch
+          title="简洁模式" path="preferences.compactMode" :field-props="{
+            rubberBand: false,
+          }"
+        />
+
+        <NDivider title-placement="left" style="margin-top: 0;">
           行情设置
         </NDivider>
 

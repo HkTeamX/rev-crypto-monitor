@@ -7,7 +7,7 @@ import { message } from '@tauri-apps/plugin-dialog'
 import { exit } from '@tauri-apps/plugin-process'
 import { ContractDownLeft16Filled, CursorClick20Filled, CursorClick20Regular, Dismiss16Filled, Pin16Filled, PinOff16Filled, Settings16Filled } from '@vicons/fluent'
 import { NButton, NFlex, NPagination } from 'naive-ui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { binanceProvider } from '@/providers/Binance.ts'
 import { gateProvider } from '@/providers/Gate.ts'
 import { okxProvider } from '@/providers/OKX.ts'
@@ -64,12 +64,49 @@ function setWindowSize() {
   window.setSize(new LogicalSize(170, height.value))
 }
 
+// 简洁模式：鼠标离开后自动隐藏工具栏和翻页
+const compactHidden = ref(false)
+let compactTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearCompactTimer() {
+  if (compactTimer) {
+    clearTimeout(compactTimer)
+    compactTimer = null
+  }
+}
+
+function onPointerEnter() {
+  if (!config.value.preferences.compactMode) {
+    return
+  }
+
+  clearCompactTimer()
+  compactHidden.value = false
+  setWindowSize()
+}
+
+function onPointerLeave() {
+  if (!config.value.preferences.compactMode) {
+    return
+  }
+
+  compactTimer = setTimeout(() => {
+    compactHidden.value = true
+    // 工具栏 28px + 翻页 28px + 间距 10px*2 = 76px
+    window.setSize(new LogicalSize(170, containerHeight.value + 20))
+  }, 1000)
+}
+
 listen('config:updated', async () => {
   page.value = 1
   await initConfig(true)
+  compactHidden.value = false
+  clearCompactTimer()
   setWindowSize()
   await loadCharts()
 })
+
+onUnmounted(clearCompactTimer)
 
 onMounted(async () => {
   window.setAlwaysOnTop(config.value.preferences.alwaysOnTop)
@@ -142,8 +179,14 @@ function computeClass(precent: number) {
 </script>
 
 <template>
-  <div data-tauri-drag-region class="monitor" :style="{ '--monitor-opacity': config.preferences.opacity / 100 }">
-    <NFlex justify="center" :size="1">
+  <div
+    data-tauri-drag-region
+    class="monitor"
+    :style="{ '--monitor-opacity': config.preferences.opacity / 100 }"
+    @pointerenter="onPointerEnter"
+    @pointerleave="onPointerLeave"
+  >
+    <NFlex v-show="!compactHidden" justify="center" :size="1">
       <NButton
         quaternary
         circle
@@ -202,7 +245,7 @@ function computeClass(precent: number) {
       </div>
     </div>
 
-    <NPagination v-model:page="page" simple :page-count="total" class="pagination" />
+    <NPagination v-show="!compactHidden" v-model:page="page" simple :page-count="total" class="pagination" />
   </div>
 </template>
 
@@ -244,6 +287,7 @@ function computeClass(precent: number) {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
+    pointer-events: none;
 
     p {
       margin: 0;
