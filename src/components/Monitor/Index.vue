@@ -3,8 +3,9 @@ import type { Chart } from '@/components/Monitor/index.ts'
 import { listen } from '@tauri-apps/api/event'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
+import { message } from '@tauri-apps/plugin-dialog'
 import { exit } from '@tauri-apps/plugin-process'
-import { ArrowClockwise16Filled, ContractDownLeft16Filled, Dismiss16Filled, Pin16Filled, PinOff16Filled, Settings16Filled } from '@vicons/fluent'
+import { ContractDownLeft16Filled, CursorClick20Filled, CursorClick20Regular, Dismiss16Filled, Pin16Filled, PinOff16Filled, Settings16Filled } from '@vicons/fluent'
 import { NButton, NFlex, NPagination } from 'naive-ui'
 import { computed, onMounted, ref } from 'vue'
 import { binanceProvider } from '@/providers/Binance.ts'
@@ -76,9 +77,26 @@ onMounted(async () => {
   await loadCharts()
 })
 
+// 监听 Rust 端托盘解除穿透的事件，同步前端状态
+listen<boolean>('click-through-changed', async (event) => {
+  config.value.preferences.clickThrough = event.payload
+  await saveConfig()
+})
+
 async function pinWindow() {
   config.value.preferences.alwaysOnTop = !config.value.preferences.alwaysOnTop
   window.setAlwaysOnTop(config.value.preferences.alwaysOnTop)
+  await saveConfig()
+}
+
+async function toggleClickThrough() {
+  if (config.value.preferences.isFirstSwitchClickThrough === true || config.value.preferences.isFirstSwitchClickThrough === undefined) {
+    await message('点击穿透已开启，窗口将无法被鼠标点击选中。可通过点击托盘图标进行恢复。')
+    config.value.preferences.isFirstSwitchClickThrough = false
+  }
+
+  config.value.preferences.clickThrough = !config.value.preferences.clickThrough
+  window.setIgnoreCursorEvents(config.value.preferences.clickThrough)
   await saveConfig()
 }
 
@@ -124,22 +142,22 @@ function computeClass(precent: number) {
 </script>
 
 <template>
-  <div data-tauri-drag-region class="monitor">
+  <div data-tauri-drag-region class="monitor" :style="{ '--monitor-opacity': config.preferences.opacity / 100 }">
     <NFlex justify="center" :size="1">
-      <NButton
-        quaternary
-        circle
-        :render-icon="renderIcon(ArrowClockwise16Filled)"
-        size="small"
-        @click="setWindowSize(); loadCharts();"
-      />
-
       <NButton
         quaternary
         circle
         :render-icon="renderIcon(config.preferences.alwaysOnTop ? PinOff16Filled : Pin16Filled)"
         size="small"
         @click="pinWindow"
+      />
+
+      <NButton
+        quaternary
+        circle
+        :render-icon="renderIcon(config.preferences.clickThrough ? CursorClick20Regular : CursorClick20Filled)"
+        size="small"
+        @click="toggleClickThrough"
       />
 
       <NButton
@@ -193,6 +211,7 @@ function computeClass(precent: number) {
   padding: 10px;
   border-radius: 5px;
   background: rgb(27, 38, 54);
+  opacity: var(--monitor-opacity);
   width: 170px;
   height: 100%;
   box-sizing: border-box;
