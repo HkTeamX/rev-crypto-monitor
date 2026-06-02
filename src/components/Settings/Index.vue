@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 import type { SelectOption } from 'naive-ui'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { NButton, NCard, NDivider, NFlex } from 'naive-ui'
+import { NButton, NCard, NDivider, NFlex, NSlider, NTag } from 'naive-ui'
 import { ProDigit, ProForm, ProSelect, ProSwitch } from 'pro-naive-ui'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import { useDraggable } from 'vue-draggable-plus'
 import { binanceProvider } from '@/providers/Binance.ts'
 import { gateProvider } from '@/providers/Gate.ts'
 import { okxProvider } from '@/providers/OKX.ts'
@@ -71,13 +72,32 @@ function closeWindow() {
   appWindow.close()
 }
 
+// 拖拽排序
+const sortableRef = ref<HTMLElement | null>(null)
+const draggedPairs = ref<string[]>([])
+
+useDraggable(sortableRef, draggedPairs, {
+  animation: 150,
+  forceFallback: true,
+  onEnd() {
+    config.value.trade.pairs = [...draggedPairs.value]
+  },
+})
+
+// 同步交易对列表到拖拽数组
+watch(
+  () => config.value.trade.pairs,
+  (val) => { draggedPairs.value = [...val] },
+  { immediate: true },
+)
+
 const form = useProForm({
   initialValues: config.value,
   rules: () => ({
     'preferences.theme': { required: true, message: '请选择主题' },
     'preferences.colorMode': { required: true, message: '请选择涨跌颜色模式' },
     'preferences.priceBasis': { required: true, message: '请选择涨跌幅基准' },
-    'preferences.size': { required: true, type: 'number', min: 1, max: 5, message: '每页展示数量必须在 1 到 50 之间' },
+    'preferences.size': { required: true, type: 'number', min: 1, max: 10, message: '每页展示数量必须在 1 到 10 之间' },
     'trade.provider': { required: true, message: '请选择交易所' },
     'trade.mark': { required: true, type: 'boolean', message: '请选择交易类型' },
     'trade.pairs': { required: true, type: 'array', min: 1, message: '请至少选择一个交易对' },
@@ -142,11 +162,23 @@ const form = useProForm({
         <ProDigit
           title="每页展示数量" path="preferences.size" :field-props="{
             min: 1,
-            max: 5,
+            max: 10,
           }"
         />
 
-        <NDivider title-placement="left" style="margin-top: 0;">
+        <NFlex align="center" :style="{ padding: '0 11px' }">
+          <span :style="{ width: '110px', flexShrink: 0, textAlign: 'start' }">背景透明度</span>
+          <NSlider
+            v-model:value="config.preferences.opacity"
+            :min="10"
+            :max="100"
+            :step="1"
+            :style="{ flex: 1 }"
+          />
+          <span :style="{ width: '40px', textAlign: 'right' }">{{ config.preferences.opacity }}%</span>
+        </NFlex>
+
+        <NDivider title-placement="left">
           行情设置
         </NDivider>
 
@@ -181,6 +213,28 @@ const form = useProForm({
           }"
         />
       </ProForm>
+
+      <div
+        v-if="config.trade.pairs.length > 1"
+        class="pair-sort-list"
+      >
+        <div class="pair-sort-header">
+          <span :style="{ width: '110px', flexShrink: 0 }">排序交易对</span>
+          <span :style="{ fontSize: '12px', color: '#999' }">拖拽调整顺序</span>
+        </div>
+        <div ref="sortableRef" class="pair-sort-items">
+          <div
+            v-for="pair in draggedPairs"
+            :key="pair"
+            class="pair-sort-item"
+          >
+            <span class="pair-sort-handle">⠿</span>
+            <NTag size="small" :bordered="false" type="info">
+              {{ pair }}
+            </NTag>
+          </div>
+        </div>
+      </div>
     </NCard>
   </div>
 </template>
@@ -188,5 +242,55 @@ const form = useProForm({
 <style lang="scss" scoped>
 .settings {
   padding: 20px;
+}
+
+.pair-sort-list {
+  padding: 0 11px;
+  margin-top: -8px;
+}
+
+.pair-sort-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.pair-sort-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: grab;
+}
+
+.pair-sort-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(128, 128, 128, 0.08);
+  cursor: grab;
+  user-select: auto;
+
+  * {
+    cursor: inherit;
+  }
+
+  .pair-sort-handle {
+    color: #999;
+    font-size: 14px;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  &.sortable-ghost {
+    opacity: 0.4;
+    background: rgba(32, 128, 240, 0.15);
+  }
+
+  &.sortable-drag {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
 }
 </style>

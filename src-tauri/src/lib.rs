@@ -1,7 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Emitter, Manager,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -23,18 +23,34 @@ pub fn run() {
                     {
                         let app_handle = tray.app_handle();
                         if let Some(window) = app_handle.get_webview_window("main") {
-                            let is_visible = window.is_visible().unwrap_or(false);
-                            let is_minimized = window.is_minimized().unwrap_or(false);
-
-                            // 窗口已经处于展示状态时，不进行其他操作。
-                            if is_visible && !is_minimized {
-                                return;
+                            // 如果最小化了则恢复
+                            if window.is_minimized().unwrap_or(false) {
+                                let _ = window.unminimize();
                             }
-
-                            // 显示窗口并置顶聚焦
-                            let _ = window.show();
-                            let _ = window.unminimize(); // 如果最小化了则恢复
+                            // 如果隐藏了则显示
+                            if !window.is_visible().unwrap_or(false) {
+                                let _ = window.show();
+                            }
+                            // 解除鼠标穿透状态并通知前端同步
+                            let _ = window.set_ignore_cursor_events(false);
+                            let _ = window.emit("click-through-changed", false);
+                            // 如果当前未置顶，临时置顶以确保窗口在最前方
+                            let was_on_top = window.is_always_on_top().unwrap_or(false);
+                            if !was_on_top {
+                                let _ = window.set_always_on_top(true);
+                            }
                             let _ = window.set_focus();
+                            // 如果是临时置顶，延迟恢复
+                            if !was_on_top {
+                                let app = app_handle.clone();
+                                let window_label = window.label().to_string();
+                                std::thread::spawn(move || {
+                                    std::thread::sleep(std::time::Duration::from_millis(50));
+                                    if let Some(w) = app.get_webview_window(&window_label) {
+                                        let _ = w.set_always_on_top(false);
+                                    }
+                                });
+                            }
                         }
                     }
                 })

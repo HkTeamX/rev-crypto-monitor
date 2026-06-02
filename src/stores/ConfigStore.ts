@@ -18,6 +18,12 @@ export interface Config {
     priceBasis: '24h' | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | -1 | -2 | -3 | -4 | -5 | -6 | -7 | -8 | -9 | -10 | -11 | -12
     // 是否开启窗口置顶
     alwaysOnTop: boolean
+    // 窗口背景透明度 (0 - 100)
+    opacity: number
+    // 是否开启窗口穿透
+    clickThrough: boolean
+    // 是否首次点击切换穿透
+    isFirstSwitchClickThrough?: boolean
   }
   trade: {
     provider: 'OKX' | 'Binance' | 'Gate'
@@ -33,6 +39,9 @@ export const defaultConfig: Config = {
     size: 3,
     priceBasis: 8,
     alwaysOnTop: true,
+    opacity: 100,
+    clickThrough: false,
+    isFirstSwitchClickThrough: true,
   },
   trade: {
     provider: 'Gate',
@@ -60,6 +69,10 @@ export async function initConfig(force = false) {
 
     if (config.value.preferences.alwaysOnTop === undefined) {
       config.value.preferences.alwaysOnTop = defaultConfig.preferences.alwaysOnTop
+    }
+
+    if (config.value.preferences.opacity === undefined) {
+      config.value.preferences.opacity = defaultConfig.preferences.opacity
     }
   }
   catch (error) {

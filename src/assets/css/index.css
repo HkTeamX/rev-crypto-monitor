@@ -5,10 +5,10 @@
   user-select: none;
 }
 
-html,body{
+html,body,#app {
   background-color: transparent !important;
+  height: 100vh;
 }
-
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
