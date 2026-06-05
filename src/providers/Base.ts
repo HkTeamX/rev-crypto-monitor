@@ -36,6 +36,7 @@ export abstract class BaseProvider {
     })
   }
 
+  abstract getTradeUrl(originalPair: string, isMark: boolean): string
   abstract getPairs(isMark: boolean): MaybePromise<SelectOption[]>
   abstract refreshCharts(options: UseChartOptions, init: boolean): MaybePromise<void>
   abstract useCharts(options: UseChartOptions): MaybePromise<() => MaybePromise<void>>
