@@ -46,6 +46,13 @@ export class BinanceProvider extends BaseProvider {
     return pair.split('_')[0] ?? 'UNKNOWN'
   }
 
+  getTradeUrl(originalPair: string, isMark: boolean): string {
+    const symbol = originalPair.replace('_', '')
+    return isMark
+      ? `https://www.binance.com/en/futures/${symbol}`
+      : `https://www.binance.com/en/trade/${symbol}`
+  }
+
   async getPairs(isMark: boolean): Promise<SelectOption[]> {
     return await fetch(isMark
       ? 'https://fapi.binance.com/fapi/v1/exchangeInfo'

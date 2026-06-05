@@ -54,6 +54,15 @@ export class GateProvider extends BaseProvider {
     return pair.split('_')[0] ?? 'UNKNOWN'
   }
 
+  getTradeUrl(originalPair: string, isMark: boolean): string {
+    if (isMark) {
+      const parts = originalPair.split('_')
+      const quote = parts[1] ?? 'USDT'
+      return `https://www.gate.com/futures/${quote}/${originalPair}`
+    }
+    return `https://www.gate.com/trade/${originalPair}`
+  }
+
   async getPairs(isMark: boolean): Promise<SelectOption[]> {
     if (isMark) {
       return await fetch(`https://api.gateio.ws/api/v4/futures/usdt/contracts`)

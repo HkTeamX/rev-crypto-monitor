@@ -65,6 +65,13 @@ export class OKXProvider extends BaseProvider {
     return pair
   }
 
+  getTradeUrl(originalPair: string, isMark: boolean): string {
+    const instId = originalPair.replace('_', '-')
+    return isMark
+      ? `https://www.okx.com/trade-swap/${instId}-SWAP`
+      : `https://www.okx.com/trade-spot/${instId}`
+  }
+
   async getPairs(isMark: boolean): Promise<SelectOption[]> {
     return await fetch(`https://www.okx.com/api/v5/public/instruments?instType=${isMark ? 'SWAP' : 'SPOT'}`)
       .then(res => res.json())

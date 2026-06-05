@@ -1,9 +1,11 @@
 <script lang="ts" setup>
 import type { Chart } from '@/components/Monitor/index.ts'
+import type { BaseProvider } from '@/providers/Base.ts'
 import { listen } from '@tauri-apps/api/event'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import { message } from '@tauri-apps/plugin-dialog'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { exit } from '@tauri-apps/plugin-process'
 import { ContractDownLeft16Filled, CursorClick20Filled, CursorClick20Regular, Dismiss16Filled, Pin16Filled, PinOff16Filled, Settings16Filled } from '@vicons/fluent'
 import { useEventListener, useInterval } from '@vueuse/core'
@@ -72,6 +74,8 @@ useEventListener(document, 'mouseleave', () => {
 })
 
 let closeListener: () => void
+let currentProvider: BaseProvider | null = null
+
 async function loadCharts() {
   charts.value.clear()
   if (closeListener) {
@@ -79,6 +83,7 @@ async function loadCharts() {
   }
 
   if (config.value.trade.provider === 'Gate') {
+    currentProvider = gateProvider
     closeListener = await gateProvider.useCharts({
       charts,
       mark: config.value.trade.mark,
@@ -87,6 +92,7 @@ async function loadCharts() {
     })
   }
   else if (config.value.trade.provider === 'Binance') {
+    currentProvider = binanceProvider
     closeListener = await binanceProvider.useCharts({
       charts,
       mark: config.value.trade.mark,
@@ -95,6 +101,7 @@ async function loadCharts() {
     })
   }
   else if (config.value.trade.provider === 'OKX') {
+    currentProvider = okxProvider
     closeListener = await okxProvider.useCharts({
       charts,
       mark: config.value.trade.mark,
@@ -103,6 +110,7 @@ async function loadCharts() {
     })
   }
   else {
+    currentProvider = null
     message('未找到交易数据提供商，请检查您的设置')
   }
 }
@@ -200,6 +208,24 @@ function computeClass(precent: number) {
     return ''
   }
 }
+
+async function openTradeUrl(displayPair: string) {
+  const provider = currentProvider
+
+  if (!provider) {
+    await message('未找到交易数据提供商，请检查您的设置')
+    return
+  }
+
+  const originalPair = config.value.trade.pairs.find(p => provider.getDisplayPair(p) === displayPair)
+  if (!originalPair) {
+    await message('未找到交易对的原始名称，请检查您的设置')
+    return
+  }
+
+  const url = provider.getTradeUrl(originalPair, config.value.trade.mark)
+  await openUrl(url)
+}
 </script>
 
 <template>
@@ -255,6 +281,8 @@ function computeClass(precent: number) {
         v-for="chart in pagnitedPairs"
         :key="chart.pair"
         class="panel"
+        data-tauri-drag-region
+        @dblclick="openTradeUrl(chart.pair)"
       >
         <p class="l1">
           <img :src="chart.icon" :alt="chart.pair">
@@ -309,7 +337,7 @@ function computeClass(precent: number) {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
-    pointer-events: none;
+    cursor: pointer;
 
     p {
       margin: 0;

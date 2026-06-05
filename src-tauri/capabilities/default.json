@@ -23,20 +23,20 @@
     "dialog:default",
     "process:default",
     {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://*.gate.com/*" },
+        { "url": "https://*.binance.com/*" },
+        { "url": "https://*.okx.com/*" }
+      ]
+    },
+    {
       "identifier": "http:default",
       "allow": [
-        {
-          "url": "https://*.gateio.ws"
-        },
-        {
-          "url": "https://*.binance.com"
-        },
-        {
-          "url": "https://bin.bnbstatic.com"
-        },
-        {
-          "url": "https://*.okx.com"
-        }
+        { "url": "https://*.gateio.ws" },
+        { "url": "https://*.binance.com" },
+        { "url": "https://bin.bnbstatic.com" },
+        { "url": "https://*.okx.com" }
       ]
     }
   ]
