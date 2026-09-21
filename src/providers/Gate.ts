@@ -104,7 +104,7 @@ export class GateProvider extends BaseProvider {
       : dayjs().utcOffset(options.priceBasis).startOf('day').unix()
     const to = dayjs().unix()
 
-    await Promise.all(
+    await Promise.allSettled(
       options.pairs.map(async (ticker) => {
         const pair = this.getDisplayPair(ticker)
 
@@ -130,12 +130,12 @@ export class GateProvider extends BaseProvider {
         const last = data[data.length - 1]
         const startMarketPrice = Number.parseFloat(options.mark ? first.o : first[5])
         const endMarketPrice = Number.parseFloat(options.mark ? last.c : last[2])
-        if (Number.isNaN(startMarketPrice) || Number.isNaN(endMarketPrice)) {
+        if (!Number.isFinite(startMarketPrice) || !Number.isFinite(endMarketPrice)) {
           return
         }
 
         this.cachedPrice.set(ticker, startMarketPrice)
-        this.updateChart(options, pair, endMarketPrice, startMarketPrice)
+        await this.updateChart(options, pair, endMarketPrice, startMarketPrice)
       }),
     )
   }
@@ -161,12 +161,18 @@ export class GateProvider extends BaseProvider {
         return
       }
 
-      if (data.event !== 'update') {
+      if (!data || data.event !== 'update') {
         return
       }
 
       if (options.mark && data.channel === 'futures.trades') {
+        if (!Array.isArray(data.result)) {
+          return
+        }
         data.result.forEach((ticker) => {
+          if (!ticker || typeof ticker.contract !== 'string') {
+            return
+          }
           const pair = this.getDisplayPair(ticker.contract)
           const price = Number.parseFloat(ticker.price)
           const startMarketPrice = this.cachedPrice.get(ticker.contract) ?? price
@@ -175,6 +181,9 @@ export class GateProvider extends BaseProvider {
       }
       else if (data.channel === 'spot.trades') {
         const result = data.result
+        if (!result || typeof result.currency_pair !== 'string') {
+          return
+        }
 
         const pair = this.getDisplayPair(result.currency_pair)
         const price = Number.parseFloat(result.price)

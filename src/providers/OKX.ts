@@ -95,7 +95,7 @@ export class OKXProvider extends BaseProvider {
       })
     }
 
-    await Promise.all(options.pairs.map(async (ticker) => {
+    await Promise.allSettled(options.pairs.map(async (ticker) => {
       const pair = this.getDisplayPair(ticker)
 
       const query = new URLSearchParams({
@@ -107,7 +107,7 @@ export class OKXProvider extends BaseProvider {
       const data = await fetch(`https://www.okx.com/api/v5/market/candles?${query}`)
         .then(res => res.json()) as OKXCandleResponse
 
-      if (data.code !== '0') {
+      if (!data || data.code !== '0' || !Array.isArray(data.data) || data.data.length === 0) {
         return
       }
 
@@ -123,12 +123,12 @@ export class OKXProvider extends BaseProvider {
 
       const startMarketPrice = Number.parseFloat(first[1])
       const endMarketPrice = Number.parseFloat(last[4])
-      if (Number.isNaN(startMarketPrice) || Number.isNaN(endMarketPrice)) {
+      if (!Number.isFinite(startMarketPrice) || !Number.isFinite(endMarketPrice)) {
         return
       }
 
       this.cachedPrice.set(pair, startMarketPrice)
-      this.updateChart(options, pair, endMarketPrice, startMarketPrice)
+      await this.updateChart(options, pair, endMarketPrice, startMarketPrice)
     }))
   }
 
@@ -153,11 +153,14 @@ export class OKXProvider extends BaseProvider {
         return
       }
 
-      if (!('data' in data)) {
+      if (!data || !Array.isArray(data.data)) {
         return
       }
 
       const ticker = data.data[0]
+      if (!ticker || typeof ticker.instId !== 'string') {
+        return
+      }
 
       const pair = this.getDisplayPair(ticker.instId)
       const price = Number.parseFloat(ticker.last)

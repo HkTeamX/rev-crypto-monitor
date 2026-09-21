@@ -27,10 +27,23 @@ export abstract class BaseProvider {
     return ((currentPrice - startMarketPrice) / startMarketPrice) * 100
   }
 
+  async getSafeIconUrl(pair: string) {
+    try {
+      return await this.getIconUrl(pair)
+    }
+    catch {
+      return ''
+    }
+  }
+
   async updateChart(options: UseChartOptions, pair: string, currentPrice: number, startMarketPrice: number) {
+    if (!Number.isFinite(currentPrice) || currentPrice <= 0 || !Number.isFinite(startMarketPrice)) {
+      return
+    }
+
     options.charts.value.set(pair, {
       pair,
-      icon: await this.getIconUrl(pair),
+      icon: await this.getSafeIconUrl(pair),
       price: currentPrice,
       precent: this.getPercent(currentPrice, startMarketPrice),
     })
