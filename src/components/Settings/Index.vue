@@ -3,22 +3,36 @@ import type { SelectOption } from 'naive-ui'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { NButton, NCard, NDivider, NFlex, NTag } from 'naive-ui'
 import { ProDigit, ProForm, ProSelect, ProSlider, ProSwitch } from 'pro-naive-ui'
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useDraggable } from 'vue-draggable-plus'
 import { binanceProvider } from '@/providers/Binance.ts'
 import { gateProvider } from '@/providers/Gate.ts'
 import { okxProvider } from '@/providers/OKX.ts'
 import { saveConfig as _saveConfig, config, defaultConfig } from '@/stores/ConfigStore.ts'
 import { notification } from '@/utils/discreteApi.ts'
+import { buildPairOptions } from '@/utils/pairOptions.ts'
 import { useProForm } from '@/utils/useProForm.ts'
 
 const appWindow = getCurrentWindow()
 
 const getParidsLoading = ref(false)
 const pairOptions = ref<SelectOption[]>([])
+const pairSearch = ref('')
+const availablePairOptions = computed(() => buildPairOptions(pairOptions.value, config.value.trade.pairs, pairSearch.value))
+
+function searchPairs(value: string) {
+  pairSearch.value = value
+}
+
+function filterPair(pattern: string, option: SelectOption) {
+  return String(option.value).toUpperCase().includes(pattern.trim().toUpperCase())
+}
+
 async function getPairs(clean = false) {
+  pairSearch.value = ''
   if (clean) {
     config.value.trade.pairs = []
+    pairOptions.value = []
   }
 
   getParidsLoading.value = true
@@ -217,7 +231,10 @@ const form = useProForm({
             filterable: true,
             loading: getParidsLoading,
             disabled: getParidsLoading,
-            options: pairOptions,
+            options: availablePairOptions,
+            filter: filterPair,
+            onSearch: searchPairs,
+            onUpdateValue: () => searchPairs(''),
           }"
         />
       </ProForm>

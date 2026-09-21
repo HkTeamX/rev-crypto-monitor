@@ -79,12 +79,12 @@ export class BinanceProvider extends BaseProvider {
 
   async refreshCharts(options: UseChartOptions, init: boolean) {
     if (init) {
-      options.pairs.forEach(async (ticker) => {
+      options.pairs.forEach((ticker) => {
         const pair = this.getDisplayPair(ticker)
 
         options.charts.value.set(pair, {
           pair,
-          icon: await this.getIconUrl(pair),
+          icon: '',
           price: 0,
           precent: 0,
         })
@@ -96,7 +96,7 @@ export class BinanceProvider extends BaseProvider {
       : dayjs().utcOffset(options.priceBasis).startOf('day').unix()
     const to = dayjs().unix()
 
-    await Promise.all(options.pairs.map(async (ticker) => {
+    await Promise.allSettled(options.pairs.map(async (ticker) => {
       const pair = this.getDisplayPair(ticker)
 
       const query = new URLSearchParams({
@@ -121,12 +121,15 @@ export class BinanceProvider extends BaseProvider {
       const last = data[data.length - 1]
       const startMarketPrice = Number.parseFloat(first[1])
       const endMarketPrice = Number.parseFloat(last[4])
+      if (!Number.isFinite(startMarketPrice) || !Number.isFinite(endMarketPrice)) {
+        return
+      }
 
       // 把原始交易对名称缓存起来 K: BTCUSDT, V: BTC
       const connectedPair = ticker.replace('_', '')
       this.displayPairCache.set(connectedPair, this.getDisplayPair(ticker))
       this.cachedPrice.set(connectedPair, startMarketPrice)
-      this.updateChart(options, pair, endMarketPrice, startMarketPrice)
+      await this.updateChart(options, pair, endMarketPrice, startMarketPrice)
     }))
   }
 
@@ -151,7 +154,7 @@ export class BinanceProvider extends BaseProvider {
         return
       }
 
-      if (data.e !== 'trade') {
+      if (!data || data.e !== 'trade' || typeof data.s !== 'string') {
         return
       }
 
